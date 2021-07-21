@@ -1,6 +1,8 @@
 /**
- * {{#description}}{{.}}{{/description}}{{^description}}{{classname}}{{/description}}
- */{{#description}}
+ * {{#description}}{{.}}{{/description}}{{^description}}{{classname}}{{/description}}{{#isDeprecated}}
+ * @deprecated{{/isDeprecated}}
+ */{{#isDeprecated}}
+@Deprecated{{/isDeprecated}}{{#description}}
 @ApiModel(description = "{{{description}}}"){{/description}}
 {{#jackson}}
 @JsonPropertyOrder({
@@ -170,15 +172,27 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#vendorE
    * maximum: {{maximum}}
   {{/maximum}}
    * @return {{name}}
+   {{#deprecated}}
+   * @deprecated
+   {{/deprecated}}
   **/
+{{#deprecated}}
+  @Deprecated
+{{/deprecated}}
 {{#required}}
 {{#isNullable}}
   @javax.annotation.Nullable
+{{/isNullable}}
+{{^isNullable}}
+  @javax.annotation.Nonnull
 {{/isNullable}}
 {{/required}}
 {{^required}}
   @javax.annotation.Nullable
 {{/required}}
+{{#jsonb}}
+  @JsonbProperty("{{baseName}}")
+{{/jsonb}}
 {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}  @ApiModelProperty({{#example}}example = "{{{example}}}", {{/example}}{{#required}}required = {{required}}, {{/required}}value = "{{{description}}}")
 {{#vendorExtensions.x-extra-annotation}}
   {{{vendorExtensions.x-extra-annotation}}}
@@ -216,7 +230,7 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#vendorE
   {{/vendorExtensions.x-is-jackson-optional-nullable}}
 
   {{^isReadOnly}}
-  public void {{setter}}({{{datatypeWithEnum}}} {{name}}) {
+{{#jackson}}{{^vendorExtensions.x-is-jackson-optional-nullable}}{{> jackson_annotations}}{{/vendorExtensions.x-is-jackson-optional-nullable}}{{/jackson}}  public void {{setter}}({{{datatypeWithEnum}}} {{name}}) {
     {{#vendorExtensions.x-is-jackson-optional-nullable}}
     this.{{name}} = JsonNullable.<{{{datatypeWithEnum}}}>of({{name}});
     {{/vendorExtensions.x-is-jackson-optional-nullable}}
@@ -228,7 +242,6 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#vendorE
 
   {{/vars}}
 
-{{^supportJava6}}
   @Override
   public boolean equals(Object o) {
   {{#useReflectionEqualsHashCode}}
@@ -259,30 +272,6 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#vendorE
   {{/useReflectionEqualsHashCode}}
   }
 
-{{/supportJava6}}
-{{#supportJava6}}
-  @Override
-  public boolean equals(Object o) {
-  if (this == o) {
-    return true;
-  }
-  if (o == null || getClass() != o.getClass()) {
-    return false;
-  }{{#hasVars}}
-    {{classname}} {{classVarName}} = ({{classname}}) o;
-    return {{#vars}}ObjectUtils.equals(this.{{name}}, {{classVarName}}.{{name}}){{^-last}} &&
-    {{/-last}}{{/vars}}{{#parent}} &&
-    super.equals(o){{/parent}};{{/hasVars}}{{^hasVars}}
-    return true;{{/hasVars}}
-  }
-
-  @Override
-  public int hashCode() {
-    return ObjectUtils.hashCodeMulti({{#vars}}{{name}}{{^-last}}, {{/-last}}{{/vars}}{{#parent}}{{#hasVars}}, {{/hasVars}}super.hashCode(){{/parent}});
-  }
-
-{{/supportJava6}}
-
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
@@ -301,7 +290,7 @@ public class {{classname}} {{#parent}}extends {{{parent}}} {{/parent}}{{#vendorE
    * Convert the given object to string with each line indented by 4 spaces
    * (except the first line).
    */
-  private String toIndentedString(Object o) {
+  private{{#jsonb}} static{{/jsonb}} String toIndentedString(Object o) {
     if (o == null) {
       return "null";
     }
