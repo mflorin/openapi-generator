@@ -71,6 +71,7 @@ import static org.openapitools.codegen.utils.OnceLogger.once;
 @SuppressWarnings("rawtypes")
 public class DefaultGenerator implements Generator {
     private static final String METADATA_DIR = ".openapi-generator";
+    public static final String X_INPROGRESS = "x-inprogress";
     protected final Logger LOGGER = LoggerFactory.getLogger(DefaultGenerator.class);
     private final boolean dryRun;
     protected CodegenConfig config;
@@ -527,6 +528,10 @@ public class DefaultGenerator implements Generator {
                             // for PythonClientCodegen, all aliases are generated as models
                             continue;  // Don't create user-defined classes for aliases
                         }
+                        if(m.vendorExtensions.containsKey(X_INPROGRESS)){
+                            LOGGER.debug("Skipped generating model {}", m.name);
+                            continue;
+                        }
                     }
                     allModels.add(modelTemplate);
                 }
@@ -577,6 +582,11 @@ public class DefaultGenerator implements Generator {
             try {
                 List<CodegenOperation> ops = paths.get(tag);
                 ops.sort((one, another) -> ObjectUtils.compare(one.operationId, another.operationId));
+                ops.removeIf(op -> hasInProgressExtension(tag, op));
+                if(ops.isEmpty()) {
+                    LOGGER.info("The {} client will not be generated", tag);
+                    continue;
+                }
                 Map<String, Object> operation = processOperations(config, tag, ops, allModels);
                 URL url = URLPathUtils.getServerURL(openAPI, config.serverVariableOverrides());
                 operation.put("basePath", basePath);
@@ -680,6 +690,13 @@ public class DefaultGenerator implements Generator {
             Json.prettyPrint(allOperations);
         }
 
+    }
+    private boolean hasInProgressExtension(String tag, CodegenOperation op) {
+        if(op.getVendorExtensions().containsKey(X_INPROGRESS)){
+            LOGGER.info("Operation {} of {} will not be generated", op.operationId, tag);
+            return true;
+        }
+        return false;
     }
 
     private void generateSupportingFiles(List<File> files, Map<String, Object> bundle) {
