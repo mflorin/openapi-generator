@@ -63,6 +63,7 @@ import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.apache.commons.lang3.StringUtils.removeStart;
@@ -71,7 +72,6 @@ import static org.openapitools.codegen.utils.OnceLogger.once;
 @SuppressWarnings("rawtypes")
 public class DefaultGenerator implements Generator {
     private static final String METADATA_DIR = ".openapi-generator";
-    public static final String X_INPROGRESS = "x-inprogress";
     protected final Logger LOGGER = LoggerFactory.getLogger(DefaultGenerator.class);
     private final boolean dryRun;
     protected CodegenConfig config;
@@ -89,6 +89,7 @@ public class DefaultGenerator implements Generator {
     private String basePath;
     private String basePathWithoutHost;
     private String contextPath;
+    private List<String> skipTags = new ArrayList<>();
     private Map<String, String> generatorPropertyDefaults = new HashMap<>();
     protected TemplateProcessor templateProcessor = null;
 
@@ -102,6 +103,11 @@ public class DefaultGenerator implements Generator {
     public DefaultGenerator(Boolean dryRun) {
         this.dryRun = Boolean.TRUE.equals(dryRun);
         LOGGER.info("Generating with dryRun={}", this.dryRun);
+        String skipTagsProperty = GlobalSettings.getProperty("skipTags");
+        if(skipTagsProperty != null) {
+            skipTags = Arrays.asList(skipTagsProperty.split(","));
+        }
+        LOGGER.info("Generating with skipTags={}", skipTags);
     }
 
     @SuppressWarnings("deprecation")
@@ -528,7 +534,7 @@ public class DefaultGenerator implements Generator {
                             // for PythonClientCodegen, all aliases are generated as models
                             continue;  // Don't create user-defined classes for aliases
                         }
-                        if(m.vendorExtensions.containsKey(X_INPROGRESS) && (boolean)m.vendorExtensions.get(X_INPROGRESS)){
+                        if(hasAnySkipTag(skipTags, m)) {
                             LOGGER.info("Skipped generating model {}", m.name);
                             continue;
                         }
@@ -554,6 +560,20 @@ public class DefaultGenerator implements Generator {
             Json.prettyPrint(allModels);
         }
 
+    }
+
+    private boolean hasAnySkipTag(List<String> skipTags, CodegenModel m) {
+        Map<String, Object> vendorExtensions = m.vendorExtensions;
+        return skipTags.stream().anyMatch(hasSkipTag(vendorExtensions));
+    }
+
+    private boolean hasAnySkipTag(List<String> skipTags, CodegenOperation op) {
+        Map<String, Object> vendorExtensions = op.vendorExtensions;
+        return skipTags.stream().anyMatch(hasSkipTag(vendorExtensions));
+    }
+
+    private Predicate<String> hasSkipTag(Map<String, Object> vendorExtensions) {
+        return skipTag -> vendorExtensions.containsKey(skipTag) && (boolean) vendorExtensions.get(skipTag);
     }
 
     @SuppressWarnings("unchecked")
@@ -692,7 +712,7 @@ public class DefaultGenerator implements Generator {
 
     }
     private boolean hasInProgressExtension(String tag, CodegenOperation op) {
-        if(op.getVendorExtensions().containsKey(X_INPROGRESS) && (boolean) op.getVendorExtensions().get(X_INPROGRESS)){
+        if (hasAnySkipTag(skipTags, op)) {
             LOGGER.info("Operation {} of {} will not be generated", op.operationId, tag);
             return true;
         }
