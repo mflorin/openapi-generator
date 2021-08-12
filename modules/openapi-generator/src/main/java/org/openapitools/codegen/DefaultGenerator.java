@@ -528,8 +528,8 @@ public class DefaultGenerator implements Generator {
                             // for PythonClientCodegen, all aliases are generated as models
                             continue;  // Don't create user-defined classes for aliases
                         }
-                        if(m.vendorExtensions.containsKey(X_INPROGRESS)){
-                            LOGGER.debug("Skipped generating model {}", m.name);
+                        if(m.vendorExtensions.containsKey(X_INPROGRESS) && (boolean)m.vendorExtensions.get(X_INPROGRESS)){
+                            LOGGER.info("Skipped generating model {}", m.name);
                             continue;
                         }
                     }
@@ -692,7 +692,7 @@ public class DefaultGenerator implements Generator {
 
     }
     private boolean hasInProgressExtension(String tag, CodegenOperation op) {
-        if(op.getVendorExtensions().containsKey(X_INPROGRESS)){
+        if(op.getVendorExtensions().containsKey(X_INPROGRESS) && (boolean) op.getVendorExtensions().get(X_INPROGRESS)){
             LOGGER.info("Operation {} of {} will not be generated", op.operationId, tag);
             return true;
         }
